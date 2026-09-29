@@ -82,7 +82,7 @@ def server():
         pending.append((time.monotonic() + delay, r))  # reply `delay` s from now
 
     # Cheating on purpose: a real monitor never learns the truth. We reveal
-    # it only so that we can score the monitor's verdicts.
+    # it only so that we can score the monitor's guesses.
     comm.send({"truth": truth, "crash_round": crash_round if crashed else None},
               dest=0, tag=ORACLE_TAG)
 
@@ -90,7 +90,7 @@ def server():
 def monitor():
     """Rank 0: send one request per round and judge ALIVE or SUSPECTED."""
     sent_at = {}       # round -> time the request was sent
-    verdict = {}       # round -> "ALIVE" or "SUSPECTED"
+    guess = {}         # round -> "ALIVE" or "SUSPECTED"
     suspected_at = {}  # round -> time the monitor gave up on it
     late = {}          # round -> seconds after sending that the late reply came
     st = MPI.Status()  # iprobe fills this in with the tag of the waiting message
@@ -124,10 +124,10 @@ def monitor():
 
         if arrived:
             comm.recv(source=1, tag=r)
-            verdict[r] = "ALIVE"
+            guess[r] = "ALIVE"
             print(f"round {r:2d} | ALIVE     | reply after {time.monotonic() - sent_at[r]:.3f} s")
         else:
-            verdict[r] = "SUSPECTED"
+            guess[r] = "SUSPECTED"
             suspected_at[r] = time.monotonic()
             print(f"round {r:2d} | SUSPECTED | no reply within {args.timeout:.3f} s")
 
@@ -150,7 +150,7 @@ def monitor():
         print(f"   late reply for round {k} arrived -- round {k} was a FALSE SUSPICION")
 
     # ------------------------- score the detector -------------------------
-    print("\nround | verdict   | truth             | result")
+    print("\nround | guess     | truth             | result")
     print("------+-----------+-------------------+------------------")
     n_alive = n_false = n_correct = 0
     for r in range(1, args.rounds + 1):
@@ -159,19 +159,19 @@ def monitor():
         if kind == "crashed":
             result = "correct suspicion"
             n_correct += 1
-        elif verdict[r] == "ALIVE":
+        elif guess[r] == "ALIVE":
             result = "ok"
             n_alive += 1
         else:
             result = "FALSE SUSPICION"
             n_false += 1
-        print(f"{r:5d} | {verdict[r]:9s} | {shown:17s} | {result}")
+        print(f"{r:5d} | {guess[r]:9s} | {shown:17s} | {result}")
 
     if crash_round is None:
         detection = "n/a (no crash)"
     else:
         detection = f"{suspected_at[crash_round] - sent_at[crash_round]:.3f} s (crash in round {crash_round})"
-    print(f"\ncorrect ALIVE verdicts : {n_alive}")
+    print(f"\ncorrect ALIVE guesses  : {n_alive}")
     print(f"FALSE SUSPICIONS       : {n_false}  (suspected, but the server was only slow)")
     print(f"correct suspicions     : {n_correct}  (the server really had crashed)")
     print(f"crash detection delay  : {detection}")

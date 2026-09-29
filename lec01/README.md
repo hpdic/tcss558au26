@@ -53,7 +53,7 @@ mpiexec -n 2 python slow_or_dead.py
 
 Rank 0 is the monitor and rank 1 is the server. Each round, the monitor sends a request
 and waits `--timeout` seconds for a reply. At the end, the program reveals what really
-happened and scores the monitor's verdicts. Run `python slow_or_dead.py --help` to see all options.
+happened and scores the monitor's guesses. Run `python slow_or_dead.py --help` to see all options.
 
 ### In-class exercise
 
