@@ -48,35 +48,29 @@ Then try `-n 1` and `-n 2`.
 
 ## 4. Running `slow_or_dead.py`
 
-```
-mpiexec -n 2 python slow_or_dead.py
-```
-
-Rank 0 is the monitor and rank 1 is the server. Each round, the monitor sends a request
-and waits `--timeout` seconds for a reply, then declares the server ALIVE or DEAD. Each line
-also shows what really happened, so you can see when the monitor was wrong. Run `python slow_or_dead.py --help` to see all options.
-
-### Try different timeouts
+The monitor (rank 0) sends one request and waits 1 s. The server (rank 1) is either
+slow (replies after 3 s) or dead (never replies).
 
 ```
-mpiexec -n 2 python slow_or_dead.py --timeout 0.1
-mpiexec -n 2 python slow_or_dead.py --timeout 0.5
-mpiexec -n 2 python slow_or_dead.py --timeout 1.0
-mpiexec -n 2 python slow_or_dead.py --timeout 2.5
+$ mpiexec -n 2 python slow_or_dead.py slow
+monitor: no reply within 1.0 s -> server is DEAD
+truth:   the server was just slow (3 s)
+
+$ mpiexec -n 2 python slow_or_dead.py dead
+monitor: no reply within 1.0 s -> server is DEAD
+truth:   the server was really dead
 ```
 
-With the default seed you get:
+The monitor sees exactly the same thing in both cases. A longer timeout (second argument)
+fixes the slow case, but then a dead server is noticed later:
 
-| timeout | slow server wrongly declared DEAD | real crash noticed after |
-|---|---|---|
-| 0.1 s | 9 times | 0.1 s |
-| 0.5 s | 4 times | 0.5 s |
-| 1.0 s | 3 times | 1.0 s |
-| 2.5 s | 0 times | 2.5 s |
+```
+$ mpiexec -n 2 python slow_or_dead.py slow 5
+monitor: reply after 3.0 s -> server is ALIVE
 
-Short timeout: fast detection, many mistakes. Long timeout: no mistakes, slow detection.
-Zero mistakes is only possible here because we know no reply takes longer than 2.0 s.
-A real network gives no such bound, so no timeout is always right.
+$ mpiexec -n 2 python slow_or_dead.py dead 5
+monitor: no reply within 5.0 s -> server is DEAD
+```
 
 ## 5. Glossary
 
