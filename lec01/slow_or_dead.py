@@ -3,9 +3,9 @@ slow_or_dead.py -- is the server slow, or is it dead?
 
 What it shows: a MONITOR (rank 0) sends a request to a SERVER (rank 1) each
 round and waits TIMEOUT seconds for the reply. No reply in time -> the
-monitor suspects the server is dead. But the server is sometimes just slow,
-and at some point it really crashes. A short timeout wrongly suspects slow
-rounds (FALSE SUSPICIONS); a long timeout notices the real crash late.
+monitor declares the server DEAD. But the server is sometimes just slow, and
+at some point it really crashes. A short timeout wrongly declares a slow
+server dead; a long timeout notices the real crash late.
 
 Run:  mpiexec -n 2 python slow_or_dead.py
       mpiexec -n 2 python slow_or_dead.py --timeout 0.1
@@ -16,7 +16,7 @@ import time
 
 from mpi4py import MPI
 
-# After guessing, the monitor keeps listening this long, only so that we can
+# After deciding, the monitor keeps listening this long, only so that we can
 # see what really happened. It is longer than any slow reply (2.0 s), so "no
 # reply by then" means the server really crashed. A real monitor cannot do
 # this: in a real system there is no known upper bound on delay.
@@ -55,11 +55,12 @@ def server():
         comm.send("pong", dest=0, tag=r)  # the tag says which round this answers
 
 def monitor():
-    """Rank 0: each round, send a request and guess ALIVE or SUSPECTED."""
-    n_ok = n_false = n_correct = 0
+    """Rank 0: each round, send a request. No reply within the timeout -> DEAD."""
+    n_wrong = 0
+    crashed = False
     print(f"timeout = {args.timeout:.3f} s\n")
-    print("round | guess     | what really happened         | result")
-    print("------+-----------+------------------------------+------------------")
+    print("round | monitor says | really")
+    print("------+--------------+--------------------------------")
     for r in range(1, args.rounds + 1):
         comm.send("ping", dest=1, tag=r)
         start = time.monotonic()
@@ -75,25 +76,23 @@ def monitor():
                 break
             time.sleep(0.001)
 
-        # The guess uses only what the monitor saw within the timeout.
-        if delay is not None and delay <= args.timeout:
-            guess, truth, result = "ALIVE", f"reply after {delay:.3f} s", "ok"
-            n_ok += 1
-        elif delay is not None:
-            guess, truth, result = "SUSPECTED", f"slow: reply after {delay:.3f} s", "FALSE SUSPICION"
-            n_false += 1
+        # The monitor decides using only the timeout.
+        says = "ALIVE" if delay is not None and delay <= args.timeout else "DEAD"
+        if delay is None:
+            really = "dead"
+            crashed = True
+        elif says == "ALIVE":
+            really = f"alive ({delay:.3f} s)"
         else:
-            guess, truth, result = "SUSPECTED", "crashed: no reply", "correct suspicion"
-            n_correct += 1
-        print(f"{r:5d} | {guess:9s} | {truth:28s} | {result}")
+            really = f"alive, just slow ({delay:.3f} s)  <-- WRONG"
+            n_wrong += 1
+        print(f"{r:5d} | {says:12s} | {really}")
 
-    detection = f"{args.timeout:.3f} s (= the timeout)" if n_correct else "n/a (no crash)"
-    print(f"\ncorrect ALIVE guesses : {n_ok}")
-    print(f"FALSE SUSPICIONS      : {n_false}  (suspected, but the server was only slow)")
-    print(f"correct suspicions    : {n_correct}  (the server really had crashed)")
-    print(f"crash detection delay : {detection}")
-    print("\nA shorter timeout detects crashes faster but wrongly suspects slow nodes.")
-    print("A longer timeout avoids false suspicions but reacts slowly to real crashes.")
+    print(f"\nslow server wrongly declared DEAD : {n_wrong} times")
+    if crashed:
+        print(f"real crash noticed after         : {args.timeout:.3f} s (= the timeout)")
+    print("\nA shorter timeout notices crashes faster but wrongly declares slow servers dead.")
+    print("A longer timeout makes fewer mistakes but notices real crashes later.")
     print("No timeout is always right in an asynchronous system.")
 
 if size != 2:

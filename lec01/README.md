@@ -53,24 +53,30 @@ mpiexec -n 2 python slow_or_dead.py
 ```
 
 Rank 0 is the monitor and rank 1 is the server. Each round, the monitor sends a request
-and waits `--timeout` seconds for a reply, then guesses ALIVE or SUSPECTED. Each line
-also shows what really happened, so you can see when the guess was wrong. Run `python slow_or_dead.py --help` to see all options.
+and waits `--timeout` seconds for a reply, then declares the server ALIVE or DEAD. Each line
+also shows what really happened, so you can see when the monitor was wrong. Run `python slow_or_dead.py --help` to see all options.
 
-### In-class exercise
-
-Run the program with `--timeout 0.1`, `0.5`, `1.0`, and `2.5`, keeping the same `--seed`:
+### Try different timeouts
 
 ```
-mpiexec -n 2 python slow_or_dead.py --timeout 0.1 --seed 42
+mpiexec -n 2 python slow_or_dead.py --timeout 0.1
+mpiexec -n 2 python slow_or_dead.py --timeout 0.5
+mpiexec -n 2 python slow_or_dead.py --timeout 1.0
+mpiexec -n 2 python slow_or_dead.py --timeout 2.5
 ```
 
-For each timeout, record the number of FALSE SUSPICIONS and the crash detection delay.
+With the default seed you get:
 
-- **Question 1:** Which timeout would you choose, and why?
-- **Question 2:** Could *any* timeout give zero false suspicions *and* fast detection?
-  What would you need to know about the network to make that possible?
-- **Question 3:** What changes if the server's delays come from a distribution you do
-  not know in advance?
+| timeout | slow server wrongly declared DEAD | real crash noticed after |
+|---|---|---|
+| 0.1 s | 9 times | 0.1 s |
+| 0.5 s | 4 times | 0.5 s |
+| 1.0 s | 3 times | 1.0 s |
+| 2.5 s | 0 times | 2.5 s |
+
+Short timeout: fast detection, many mistakes. Long timeout: no mistakes, slow detection.
+Zero mistakes is only possible here because we know no reply takes longer than 2.0 s.
+A real network gives no such bound, so no timeout is always right.
 
 ## 5. Glossary
 
