@@ -17,8 +17,7 @@ Pick one option:
   ```
 - **Ubuntu/Debian**
   ```
-  sudo apt install openmpi-bin libopenmpi-dev
-  pip install mpi4py
+  sudo apt install openmpi-bin libopenmpi-dev python3-mpi4py python-is-python3
   ```
 - **Any OS with conda**
   ```
@@ -32,6 +31,8 @@ mpiexec -n 2 python -c "from mpi4py import MPI; print(MPI.COMM_WORLD.Get_rank())
 ```
 
 Notes:
+- If you get `unable to find the specified executable file ... python`, your system only
+  has `python3`: type `python3` instead of `python` in every command.
 - On some systems the launcher is called `mpirun` instead of `mpiexec`. They take the same options.
 - If `-n` is larger than the number of cores on your laptop, Open MPI refuses to start.
   Add `--oversubscribe`, e.g. `mpiexec --oversubscribe -n 4 python hello_mpi.py`.
