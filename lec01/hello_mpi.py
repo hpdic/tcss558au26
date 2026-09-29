@@ -3,8 +3,6 @@ hello_mpi.py -- a first look at MPI.
 
 What it shows: several separate processes running the same program, each
 finding out who it is (its rank), and then two of them exchanging messages.
-Lecture link: a distributed system is independent processes that share
-nothing and cooperate only by sending messages; there is no global order.
 
 Run:  mpiexec -n 4 python hello_mpi.py
 """
@@ -30,8 +28,8 @@ host = MPI.Get_processor_name()  # the machine this process runs on
 # global order of events.
 print(f"Hello from rank {rank} of {size} on {host}")
 
-# A barrier makes every process wait here until all have arrived. It only
-# tidies the output a little; it does NOT guarantee the print order above.
+# A barrier makes every process wait here until all have arrived. 
+# It does NOT guarantee the print order above.
 comm.Barrier()
 
 # ---------------------------------------------------------------------------
